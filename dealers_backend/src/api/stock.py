@@ -160,6 +160,7 @@ def update_stock_entry(
 @router.delete(
     "/{stock_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
     summary="Delete stock entry",
     description="Delete a stock entry by id.",
     operation_id="stock_delete",

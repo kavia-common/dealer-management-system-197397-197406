@@ -283,6 +283,7 @@ def update_payment(payment_id: int, payload: PaymentCreateIn, db: Session = Depe
 @router.delete(
     "/{payment_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
     summary="Delete payment",
     description="Delete a payment record by id.",
     operation_id="payments_delete",

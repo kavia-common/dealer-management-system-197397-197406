@@ -152,6 +152,7 @@ def update_payroll_credit(
 @router.delete(
     "/{credit_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
     summary="Delete payroll credit",
     description="Delete a payroll/credit entry by id.",
     operation_id="payroll_credits_delete",

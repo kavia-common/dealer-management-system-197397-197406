@@ -115,6 +115,7 @@ def update_dealer(dealer_id: int, payload: DealerUpdate, db: Session = Depends(g
 @router.delete(
     "/{dealer_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
     summary="Delete dealer",
     description="Delete a dealer by id. Cascades to related stock entries, credits, and payments.",
     operation_id="dealers_delete",
