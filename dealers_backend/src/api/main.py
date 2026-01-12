@@ -37,10 +37,14 @@ app = FastAPI(
     openapi_tags=openapi_tags,
 )
 
+# CORS configuration:
+# - Dev frontend runs at http://localhost:3000
+# - Backend runs at http://localhost:3001
+# - We keep credentials disabled (cookies/auth headers not required for this app in dev).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
