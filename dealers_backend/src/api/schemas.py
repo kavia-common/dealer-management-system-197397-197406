@@ -4,7 +4,7 @@ import datetime as dt
 from decimal import Decimal
 from typing import Optional
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, AliasChoices
 
 
 class _ORMModel(BaseModel):
@@ -57,24 +57,24 @@ class StockEntryCreate(BaseModel):
 
     dealer_id: int = Field(
         ...,
-        validation_alias=("dealer_id", "dealerId"),
+        validation_alias=AliasChoices("dealer_id", "dealerId"),
         description="Dealer id",
     )
     item_name: str = Field(
         ...,
-        validation_alias=("item_name", "itemName"),
+        validation_alias=AliasChoices("item_name", "itemName"),
         description="Item name/description",
     )
     quantity: Decimal = Field(..., ge=0, description="Quantity (numeric in DB)")
     unit_cost: Decimal = Field(
         ...,
-        validation_alias=("unit_cost", "unitCost"),
+        validation_alias=AliasChoices("unit_cost", "unitCost"),
         ge=0,
         description="Unit cost",
     )
     stock_date: Optional[dt.date] = Field(
         None,
-        validation_alias=("stock_date", "stockDate", "entryDate", "entry_date"),
+        validation_alias=AliasChoices("stock_date", "stockDate", "entryDate", "entry_date"),
         description="Stock entry date (defaults to today)",
     )
     notes: Optional[str] = Field(None, description="Optional notes")
