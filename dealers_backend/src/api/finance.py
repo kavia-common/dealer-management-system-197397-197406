@@ -166,6 +166,9 @@ def get_finance_summary(db: Session = Depends(get_db)) -> dict:
             # Minimal implementation (real implementation would filter payments by month)
             "paidThisMonth": float(0),
         },
+        # Include per-dealer rows so the UI/E2E flow can validate balances without
+        # making an extra call to /finance/dealers.
+        "perDealer": [FinancePerDealerSummary(**r).model_dump() for r in dealer_summaries],
         # Charts are optional; keeping empty arrays lets UI render its placeholders.
         "charts": {"cashflow": [], "outstandingByBucket": []},
         "lastUpdated": _iso_now(),
