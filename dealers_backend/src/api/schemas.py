@@ -42,14 +42,41 @@ class DealerOut(_ORMModel):
 class StockEntryCreate(BaseModel):
     """Create payload for a stock entry.
 
-    Note: the DB schema uses `entry_date`, but the API historically used `stock_date`.
-    We keep API compatibility by accepting `stock_date` and mapping it to `entry_date`.
+    Note:
+        The DB schema uses `entry_date`, but the API historically used `stock_date`.
+
+        The React UI (and some earlier iterations of the API docs) may send camelCase
+        keys like `dealerId`, `itemName`, `unitCost`, and `stockDate`/`entryDate`.
+
+        To avoid UI↔API regressions, this schema explicitly accepts BOTH snake_case
+        and camelCase variants via validation aliases, while keeping the canonical
+        internal field names snake_case.
     """
-    dealer_id: int = Field(..., description="Dealer id")
-    item_name: str = Field(..., description="Item name/description")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    dealer_id: int = Field(
+        ...,
+        validation_alias=("dealer_id", "dealerId"),
+        description="Dealer id",
+    )
+    item_name: str = Field(
+        ...,
+        validation_alias=("item_name", "itemName"),
+        description="Item name/description",
+    )
     quantity: Decimal = Field(..., ge=0, description="Quantity (numeric in DB)")
-    unit_cost: Decimal = Field(..., ge=0, description="Unit cost")
-    stock_date: Optional[dt.date] = Field(None, description="Stock entry date (defaults to today)")
+    unit_cost: Decimal = Field(
+        ...,
+        validation_alias=("unit_cost", "unitCost"),
+        ge=0,
+        description="Unit cost",
+    )
+    stock_date: Optional[dt.date] = Field(
+        None,
+        validation_alias=("stock_date", "stockDate", "entryDate", "entry_date"),
+        description="Stock entry date (defaults to today)",
+    )
     notes: Optional[str] = Field(None, description="Optional notes")
 
 
