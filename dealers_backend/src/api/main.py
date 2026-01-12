@@ -6,6 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from src.api.dealers import router as dealers_router
+from src.api.payments import router as payments_router
 from src.api.payroll_credits import router as payroll_credits_router
 from src.api.stock import router as stock_router
 from src.core.config import get_settings
@@ -18,6 +19,10 @@ openapi_tags = [
     {"name": "Dealers", "description": "CRUD operations for dealer records."},
     {"name": "Stock", "description": "CRUD operations for stock entries (purchases from dealers)."},
     {"name": "Payroll/Credits", "description": "CRUD operations for dealer payroll credits and balance computation."},
+    {
+        "name": "Payments",
+        "description": "CRUD operations for dealer payment records and paid/unpaid status handling.",
+    },
 ]
 
 app = FastAPI(
@@ -39,6 +44,7 @@ app.add_middleware(
 app.include_router(dealers_router, prefix="/api")
 app.include_router(stock_router, prefix="/api")
 app.include_router(payroll_credits_router, prefix="/api")
+app.include_router(payments_router, prefix="/api")
 
 
 @app.get(
