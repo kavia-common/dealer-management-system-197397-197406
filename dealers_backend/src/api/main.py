@@ -6,6 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from src.api.dealers import router as dealers_router
+from src.api.stock import router as stock_router
 from src.core.config import get_settings
 from src.db.session import get_db
 
@@ -14,6 +15,7 @@ settings = get_settings()
 openapi_tags = [
     {"name": "Health", "description": "Service and dependency health checks."},
     {"name": "Dealers", "description": "CRUD operations for dealer records."},
+    {"name": "Stock", "description": "CRUD operations for stock entries (purchases from dealers)."},
 ]
 
 app = FastAPI(
@@ -33,6 +35,7 @@ app.add_middleware(
 
 # Register API routers
 app.include_router(dealers_router, prefix="/api")
+app.include_router(stock_router, prefix="/api")
 
 
 @app.get(
