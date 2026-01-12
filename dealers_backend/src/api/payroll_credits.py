@@ -14,11 +14,29 @@ from src.db.repositories import compute_dealer_ledger_summary
 from src.db.session import get_db
 
 router = APIRouter(prefix="/payroll_credits", tags=["Payroll/Credits"])
+# Alias router to support the hyphenated path used by the frontend hooks.
+router_alias = APIRouter(prefix="/payroll-credits", tags=["Payroll/Credits"])
 
 
 def _q2(value: Decimal) -> Decimal:
     """Quantize to 2 decimal places to match DB Numeric(12,2) scale."""
     return Decimal(value).quantize(Decimal("0.01"))
+
+
+def _to_out(entry: PayrollCredit) -> PayrollCreditOut:
+    """Map ORM PayrollCredit (DB schema) to API response schema.
+
+    The DB column is `txn_date` but the API/Frontend expects `credit_date`.
+    """
+    return PayrollCreditOut(
+        id=entry.id,
+        dealer_id=entry.dealer_id,
+        txn_type=entry.txn_type,
+        description=entry.description,
+        amount=_q2(entry.amount),
+        credit_date=entry.txn_date,
+        created_at=entry.created_at,
+    )
 
 
 @router.get(
@@ -41,7 +59,7 @@ def list_payroll_credits(
     limit: int = Query(50, ge=1, le=200, description="Max number of payroll credits to return"),
     offset: int = Query(0, ge=0, description="Number of payroll credits to skip"),
     db: Session = Depends(get_db),
-) -> List[PayrollCredit]:
+) -> List[PayrollCreditOut]:
     """List payroll/credit entries with optional dealer filter.
 
     Args:
@@ -58,7 +76,7 @@ def list_payroll_credits(
         stmt = stmt.where(PayrollCredit.dealer_id == dealer_id)
 
     stmt = stmt.order_by(PayrollCredit.txn_date.desc(), PayrollCredit.id.desc()).limit(limit).offset(offset)
-    return list(db.execute(stmt).scalars().all())
+    return [_to_out(e) for e in list(db.execute(stmt).scalars().all())]
 
 
 @router.post(
@@ -70,7 +88,7 @@ def list_payroll_credits(
     operation_id="payroll_credits_create",
 )
 # PUBLIC_INTERFACE
-def create_payroll_credit(payload: PayrollCreditCreate, db: Session = Depends(get_db)) -> PayrollCredit:
+def create_payroll_credit(payload: PayrollCreditCreate, db: Session = Depends(get_db)) -> PayrollCreditOut:
     """Create a payroll/credit entry.
 
     Args:
@@ -97,7 +115,7 @@ def create_payroll_credit(payload: PayrollCreditCreate, db: Session = Depends(ge
     db.add(credit)
     db.commit()
     db.refresh(credit)
-    return credit
+    return _to_out(credit)
 
 
 @router.put(
@@ -116,7 +134,7 @@ def update_payroll_credit(
     credit_id: int,
     payload: PayrollCreditCreate,
     db: Session = Depends(get_db),
-) -> PayrollCredit:
+) -> PayrollCreditOut:
     """Update a payroll/credit entry.
 
     Args:
@@ -148,7 +166,7 @@ def update_payroll_credit(
     db.add(credit)
     db.commit()
     db.refresh(credit)
-    return credit
+    return _to_out(credit)
 
 
 @router.delete(
@@ -225,3 +243,82 @@ def get_dealer_balance_summary(dealer_id: int, db: Session = Depends(get_db)) ->
         payments_total=summary["payments_total"],
         balance_due=summary["balance_due"],
     )
+
+
+# -------------------------
+# Hyphenated route aliases
+# -------------------------
+@router_alias.get(
+    "",
+    response_model=List[PayrollCreditOut],
+    summary="List payroll credits (alias)",
+    description="Alias of GET /payroll_credits for frontend compatibility.",
+    operation_id="payroll_credits_list_alias",
+)
+# PUBLIC_INTERFACE
+def list_payroll_credits_alias(
+    dealer_id: int | None = Query(None, description="Optional dealer id to filter payroll/credits"),
+    limit: int = Query(50, ge=1, le=200, description="Max number of payroll credits to return"),
+    offset: int = Query(0, ge=0, description="Number of payroll credits to skip"),
+    db: Session = Depends(get_db),
+) -> List[PayrollCreditOut]:
+    """Alias for list_payroll_credits using /payroll-credits path."""
+    return list_payroll_credits(dealer_id=dealer_id, limit=limit, offset=offset, db=db)
+
+
+@router_alias.post(
+    "",
+    response_model=PayrollCreditOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create payroll credit (alias)",
+    description="Alias of POST /payroll_credits for frontend compatibility.",
+    operation_id="payroll_credits_create_alias",
+)
+# PUBLIC_INTERFACE
+def create_payroll_credit_alias(payload: PayrollCreditCreate, db: Session = Depends(get_db)) -> PayrollCreditOut:
+    """Alias for create_payroll_credit using /payroll-credits path."""
+    return create_payroll_credit(payload=payload, db=db)
+
+
+@router_alias.put(
+    "/{credit_id}",
+    response_model=PayrollCreditOut,
+    summary="Update payroll credit (alias)",
+    description="Alias of PUT /payroll_credits/{credit_id} for frontend compatibility.",
+    operation_id="payroll_credits_update_alias",
+)
+# PUBLIC_INTERFACE
+def update_payroll_credit_alias(
+    credit_id: int,
+    payload: PayrollCreditCreate,
+    db: Session = Depends(get_db),
+) -> PayrollCreditOut:
+    """Alias for update_payroll_credit using /payroll-credits path."""
+    return update_payroll_credit(credit_id=credit_id, payload=payload, db=db)
+
+
+@router_alias.delete(
+    "/{credit_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    summary="Delete payroll credit (alias)",
+    description="Alias of DELETE /payroll_credits/{credit_id} for frontend compatibility.",
+    operation_id="payroll_credits_delete_alias",
+)
+# PUBLIC_INTERFACE
+def delete_payroll_credit_alias(credit_id: int, db: Session = Depends(get_db)) -> None:
+    """Alias for delete_payroll_credit using /payroll-credits path."""
+    return delete_payroll_credit(credit_id=credit_id, db=db)
+
+
+@router_alias.get(
+    "/dealer/{dealer_id}/summary",
+    response_model=DealerLedgerSummary,
+    summary="Get dealer balance summary (alias)",
+    description="Alias of GET /payroll_credits/dealer/{dealer_id}/summary for frontend compatibility.",
+    operation_id="dealer_balance_summary_alias",
+)
+# PUBLIC_INTERFACE
+def get_dealer_balance_summary_alias(dealer_id: int, db: Session = Depends(get_db)) -> DealerLedgerSummary:
+    """Alias for get_dealer_balance_summary using /payroll-credits path."""
+    return get_dealer_balance_summary(dealer_id=dealer_id, db=db)
