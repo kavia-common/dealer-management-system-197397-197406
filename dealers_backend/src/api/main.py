@@ -6,6 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from src.api.dealers import router as dealers_router
+from src.api.finance import router as finance_router
 from src.api.payments import router as payments_router
 from src.api.payroll_credits import router as payroll_credits_router
 from src.api.stock import router as stock_router
@@ -22,6 +23,10 @@ openapi_tags = [
     {
         "name": "Payments",
         "description": "CRUD operations for dealer payment records and paid/unpaid status handling.",
+    },
+    {
+        "name": "Finance",
+        "description": "Finance reporting endpoints (totals, per-dealer summaries, and activity feed).",
     },
 ]
 
@@ -45,6 +50,7 @@ app.include_router(dealers_router, prefix="/api")
 app.include_router(stock_router, prefix="/api")
 app.include_router(payroll_credits_router, prefix="/api")
 app.include_router(payments_router, prefix="/api")
+app.include_router(finance_router, prefix="/api")
 
 
 @app.get(
