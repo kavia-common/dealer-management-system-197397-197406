@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from src.api.dealers import router as dealers_router
 from src.core.config import get_settings
 from src.db.session import get_db
 
@@ -12,6 +13,7 @@ settings = get_settings()
 
 openapi_tags = [
     {"name": "Health", "description": "Service and dependency health checks."},
+    {"name": "Dealers", "description": "CRUD operations for dealer records."},
 ]
 
 app = FastAPI(
@@ -28,6 +30,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register API routers
+app.include_router(dealers_router, prefix="/api")
 
 
 @app.get(
