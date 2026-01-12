@@ -4,6 +4,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.api.schemas import DealerCreate, DealerOut, DealerUpdate
@@ -61,10 +62,20 @@ def create_dealer(payload: DealerCreate, db: Session = Depends(get_db)) -> Deale
 
     Returns:
         DealerOut: The created dealer.
+
+    Raises:
+        HTTPException: 409 if dealer name already exists (DB unique constraint).
     """
     dealer = Dealer(name=payload.name, phone=payload.phone, address=payload.address)
     db.add(dealer)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Dealer with this name already exists",
+        )
     db.refresh(dealer)
     return dealer
 
