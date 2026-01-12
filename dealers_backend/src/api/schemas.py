@@ -40,21 +40,28 @@ class DealerOut(_ORMModel):
 # Stock entry schemas
 # -----------------------
 class StockEntryCreate(BaseModel):
+    """Create payload for a stock entry.
+
+    Note: the DB schema uses `entry_date`, but the API historically used `stock_date`.
+    We keep API compatibility by accepting `stock_date` and mapping it to `entry_date`.
+    """
     dealer_id: int = Field(..., description="Dealer id")
     item_name: str = Field(..., description="Item name/description")
-    quantity: int = Field(..., ge=1, description="Quantity")
+    quantity: Decimal = Field(..., ge=0, description="Quantity (numeric in DB)")
     unit_cost: Decimal = Field(..., ge=0, description="Unit cost")
     stock_date: Optional[dt.date] = Field(None, description="Stock entry date (defaults to today)")
+    notes: Optional[str] = Field(None, description="Optional notes")
 
 
 class StockEntryOut(_ORMModel):
     id: int
     dealer_id: int
     item_name: str
-    quantity: int
+    quantity: Decimal
     unit_cost: Decimal
-    total_cost: Decimal
-    stock_date: dt.date
+    total_cost: Decimal = Field(..., description="Derived as quantity * unit_cost (not stored)")
+    stock_date: dt.date = Field(..., description="Alias of DB entry_date")
+    notes: Optional[str] = None
     created_at: dt.datetime
 
 
@@ -62,18 +69,28 @@ class StockEntryOut(_ORMModel):
 # Payroll/Credit schemas
 # -----------------------
 class PayrollCreditCreate(BaseModel):
+    """Create payload for a payroll/credit entry.
+
+    DB uses:
+      - txn_type: 'PAYROLL' | 'CREDIT'
+      - txn_date
+
+    API keeps using `credit_date` naming for compatibility, but maps to txn_date.
+    """
     dealer_id: int = Field(..., description="Dealer id")
-    description: Optional[str] = Field(None, description="Reason/notes for the credit")
-    amount: Decimal = Field(..., ge=0, description="Credit amount")
-    credit_date: Optional[dt.date] = Field(None, description="Credit date (defaults to today)")
+    txn_type: str = Field(..., description="Transaction type: PAYROLL or CREDIT")
+    description: Optional[str] = Field(None, description="Reason/notes for the entry")
+    amount: Decimal = Field(..., ge=0, description="Amount (positive)")
+    credit_date: Optional[dt.date] = Field(None, description="Transaction date (defaults to today)")
 
 
 class PayrollCreditOut(_ORMModel):
     id: int
     dealer_id: int
+    txn_type: str
     description: Optional[str] = None
     amount: Decimal
-    credit_date: dt.date
+    credit_date: dt.date = Field(..., description="Alias of DB txn_date")
     created_at: dt.datetime
 
 

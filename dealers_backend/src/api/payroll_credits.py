@@ -57,7 +57,7 @@ def list_payroll_credits(
     if dealer_id is not None:
         stmt = stmt.where(PayrollCredit.dealer_id == dealer_id)
 
-    stmt = stmt.order_by(PayrollCredit.credit_date.desc(), PayrollCredit.id.desc()).limit(limit).offset(offset)
+    stmt = stmt.order_by(PayrollCredit.txn_date.desc(), PayrollCredit.id.desc()).limit(limit).offset(offset)
     return list(db.execute(stmt).scalars().all())
 
 
@@ -89,9 +89,10 @@ def create_payroll_credit(payload: PayrollCreditCreate, db: Session = Depends(ge
 
     credit = PayrollCredit(
         dealer_id=payload.dealer_id,
+        txn_type=str(payload.txn_type).upper(),
         description=payload.description,
         amount=_q2(payload.amount),
-        credit_date=payload.credit_date or dt.date.today(),
+        txn_date=payload.credit_date or dt.date.today(),
     )
     db.add(credit)
     db.commit()
@@ -139,9 +140,10 @@ def update_payroll_credit(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dealer not found")
 
     credit.dealer_id = payload.dealer_id
+    credit.txn_type = str(payload.txn_type).upper()
     credit.description = payload.description
     credit.amount = _q2(payload.amount)
-    credit.credit_date = payload.credit_date or credit.credit_date
+    credit.txn_date = payload.credit_date or credit.txn_date
 
     db.add(credit)
     db.commit()

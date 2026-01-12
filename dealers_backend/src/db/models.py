@@ -40,18 +40,26 @@ class Dealer(Base):
 
 
 class StockEntry(Base):
-    """Stock purchase/entry from a dealer."""
+    """Stock purchase/entry from a dealer.
+
+    IMPORTANT: This model matches the existing Postgres schema in dealers_database.
+
+    Table: stock_entries
+      - entry_date (date) is the business date
+      - quantity is numeric(12,2) in DB (legacy), but semantically represents a count
+      - there is no persisted total_cost column; total is derived as quantity * unit_cost
+    """
     __tablename__ = "stock_entries"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    dealer_id: Mapped[int] = mapped_column(ForeignKey("dealers.id", ondelete="CASCADE"), index=True)
+    dealer_id: Mapped[int] = mapped_column(ForeignKey("dealers.id", ondelete="RESTRICT"), index=True)
 
-    item_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    item_name: Mapped[str] = mapped_column(Text, nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     unit_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-    total_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
 
-    stock_date: Mapped[dt.date] = mapped_column(Date, nullable=False, default=dt.date.today)
+    entry_date: Mapped[dt.date] = mapped_column(Date, nullable=False, default=dt.date.today)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -61,16 +69,24 @@ class StockEntry(Base):
 
 
 class PayrollCredit(Base):
-    """Represents a payroll/credit entry associated with a dealer (amount owed to dealer)."""
+    """Payroll/Credit entry associated with a dealer.
+
+    IMPORTANT: This model matches the existing Postgres schema in dealers_database.
+
+    Table: payroll_credits
+      - txn_type is 'PAYROLL' | 'CREDIT'
+      - txn_date is the business date
+    """
     __tablename__ = "payroll_credits"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    dealer_id: Mapped[int] = mapped_column(ForeignKey("dealers.id", ondelete="CASCADE"), index=True)
+    dealer_id: Mapped[int] = mapped_column(ForeignKey("dealers.id", ondelete="RESTRICT"), index=True)
+
+    txn_type: Mapped[str] = mapped_column(Text, nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    txn_date: Mapped[dt.date] = mapped_column(Date, nullable=False, default=dt.date.today)
 
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-
-    credit_date: Mapped[dt.date] = mapped_column(Date, nullable=False, default=dt.date.today)
 
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -80,17 +96,25 @@ class PayrollCredit(Base):
 
 
 class Payment(Base):
-    """Payment made to a dealer (settlement)."""
+    """Payment received from a dealer.
+
+    IMPORTANT: This model matches the existing Postgres schema in dealers_database.
+
+    Table: payments
+      - payment_date is the business date (date)
+      - notes/method/reference are stored as separate columns
+    """
     __tablename__ = "payments"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    dealer_id: Mapped[int] = mapped_column(ForeignKey("dealers.id", ondelete="CASCADE"), index=True)
+    dealer_id: Mapped[int] = mapped_column(ForeignKey("dealers.id", ondelete="RESTRICT"), index=True)
 
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-    paid_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=dt.datetime.utcnow
-    )
-    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    payment_date: Mapped[dt.date] = mapped_column(Date, nullable=False, default=dt.date.today)
+
+    method: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    reference: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

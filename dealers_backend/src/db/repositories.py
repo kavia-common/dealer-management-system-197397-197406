@@ -114,7 +114,12 @@ def compute_dealer_ledger_summary(db: Session, dealer_id: int) -> dict[str, Deci
         return None
 
     stock_total = db.execute(
-        select(func.coalesce(func.sum(StockEntry.total_cost), 0)).where(StockEntry.dealer_id == dealer_id)
+        select(
+            func.coalesce(
+                func.sum(StockEntry.quantity * StockEntry.unit_cost),
+                0,
+            )
+        ).where(StockEntry.dealer_id == dealer_id)
     ).scalar_one()
     payroll_total = db.execute(
         select(func.coalesce(func.sum(PayrollCredit.amount), 0)).where(PayrollCredit.dealer_id == dealer_id)
@@ -160,7 +165,9 @@ def compute_finance_totals(db: Session) -> dict[str, Decimal]:
         dict[str, Decimal]: Totals as Decimals (2-decimal quantized).
     """
     stock_total = Decimal(
-        db.execute(select(func.coalesce(func.sum(StockEntry.total_cost), 0))).scalar_one()
+        db.execute(
+            select(func.coalesce(func.sum(StockEntry.quantity * StockEntry.unit_cost), 0))
+        ).scalar_one()
     )
     credit_total = Decimal(
         db.execute(select(func.coalesce(func.sum(PayrollCredit.amount), 0))).scalar_one()
@@ -200,7 +207,7 @@ def list_finance_per_dealer_summaries(db: Session, *, limit: int, offset: int) -
     stock_agg = (
         select(
             StockEntry.dealer_id.label("dealer_id"),
-            func.coalesce(func.sum(StockEntry.total_cost), 0).label("stock_total"),
+            func.coalesce(func.sum(StockEntry.quantity * StockEntry.unit_cost), 0).label("stock_total"),
             func.count(StockEntry.id).label("stock_count"),
         )
         .group_by(StockEntry.dealer_id)
@@ -301,7 +308,7 @@ def list_finance_activity(db: Session, *, limit: int, offset: int) -> list[dict]
             StockEntry.id.label("id"),
             Dealer.id.label("dealerId"),
             Dealer.name.label("dealerName"),
-            StockEntry.total_cost.label("amount"),
+            (StockEntry.quantity * StockEntry.unit_cost).label("amount"),
             StockEntry.created_at.label("occurredAt"),
             StockEntry.item_name.label("description"),
         )
@@ -330,8 +337,8 @@ def list_finance_activity(db: Session, *, limit: int, offset: int) -> list[dict]
             Dealer.id.label("dealerId"),
             Dealer.name.label("dealerName"),
             Payment.amount.label("amount"),
-            Payment.paid_at.label("occurredAt"),
-            func.coalesce(Payment.note, "").label("description"),
+            Payment.payment_date.label("occurredAt"),
+            func.coalesce(Payment.notes, "").label("description"),
         )
         .select_from(Payment)
         .join(Dealer, Dealer.id == Payment.dealer_id)

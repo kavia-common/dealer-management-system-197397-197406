@@ -15,9 +15,29 @@ from src.db.session import get_db
 router = APIRouter(prefix="/stock", tags=["Stock"])
 
 
-def _compute_total_cost(unit_cost: Decimal, quantity: int) -> Decimal:
-    """Compute total cost with 2-decimal quantization to match DB scale."""
-    return (unit_cost * Decimal(quantity)).quantize(Decimal("0.01"))
+def _q2(value: Decimal) -> Decimal:
+    """Quantize to 2-decimal places to match DB Numeric(12,2) scale."""
+    return Decimal(value).quantize(Decimal("0.01"))
+
+
+def _compute_total_cost(unit_cost: Decimal, quantity: Decimal) -> Decimal:
+    """Compute derived total cost (not persisted in DB)."""
+    return _q2(Decimal(unit_cost) * Decimal(quantity))
+
+
+def _to_out(entry: StockEntry) -> StockEntryOut:
+    """Map ORM StockEntry (DB schema) to API response schema."""
+    return StockEntryOut(
+        id=entry.id,
+        dealer_id=entry.dealer_id,
+        item_name=entry.item_name,
+        quantity=_q2(entry.quantity),
+        unit_cost=_q2(entry.unit_cost),
+        total_cost=_compute_total_cost(entry.unit_cost, entry.quantity),
+        stock_date=entry.entry_date,
+        notes=entry.notes,
+        created_at=entry.created_at,
+    )
 
 
 @router.get(
@@ -56,8 +76,8 @@ def list_stock_entries(
     if dealer_id is not None:
         stmt = stmt.where(StockEntry.dealer_id == dealer_id)
 
-    stmt = stmt.order_by(StockEntry.stock_date.desc(), StockEntry.id.desc()).limit(limit).offset(offset)
-    return list(db.execute(stmt).scalars().all())
+    stmt = stmt.order_by(StockEntry.entry_date.desc(), StockEntry.id.desc()).limit(limit).offset(offset)
+    return [_to_out(e) for e in list(db.execute(stmt).scalars().all())]
 
 
 @router.post(
@@ -89,15 +109,15 @@ def create_stock_entry(payload: StockEntryCreate, db: Session = Depends(get_db))
     entry = StockEntry(
         dealer_id=payload.dealer_id,
         item_name=payload.item_name,
-        quantity=payload.quantity,
-        unit_cost=payload.unit_cost,
-        total_cost=_compute_total_cost(payload.unit_cost, payload.quantity),
-        stock_date=payload.stock_date or dt.date.today(),
+        quantity=_q2(payload.quantity),
+        unit_cost=_q2(payload.unit_cost),
+        entry_date=payload.stock_date or dt.date.today(),
+        notes=payload.notes,
     )
     db.add(entry)
     db.commit()
     db.refresh(entry)
-    return entry
+    return _to_out(entry)
 
 
 @router.put(
@@ -146,15 +166,15 @@ def update_stock_entry(
 
     entry.dealer_id = payload.dealer_id
     entry.item_name = payload.item_name
-    entry.quantity = payload.quantity
-    entry.unit_cost = payload.unit_cost
-    entry.stock_date = payload.stock_date or entry.stock_date
-    entry.total_cost = _compute_total_cost(entry.unit_cost, entry.quantity)
+    entry.quantity = _q2(payload.quantity)
+    entry.unit_cost = _q2(payload.unit_cost)
+    entry.entry_date = payload.stock_date or entry.entry_date
+    entry.notes = payload.notes
 
     db.add(entry)
     db.commit()
     db.refresh(entry)
-    return entry
+    return _to_out(entry)
 
 
 @router.delete(
